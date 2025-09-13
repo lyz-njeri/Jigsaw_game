@@ -1,4 +1,5 @@
 import pygame
+from flask import Flask
 import random
 import math
 import time
@@ -8,6 +9,8 @@ from datetime import datetime, timedelta
 from enum import Enum
 from dataclasses import dataclass
 from typing import List, Any, Optional, Tuple
+import threading
+
 
 def clamp_color(value):
     """Ensure color values are within valid range (0-255)."""
@@ -255,7 +258,7 @@ class JigsawPuzzle:
             for radius in range(10, 40, 5):
                 color_intensity = clamp_color(100 - radius)
                 pygame.draw.circle(surface, (color_intensity, color_intensity, clamp_color(color_intensity + 50)),
-                                 (center_x, center_y), radius, 2)
+                                (center_x, center_y), radius, 2)
 
         # Stars
         for i in range(30):
@@ -268,8 +271,8 @@ class JigsawPuzzle:
 
         # Cypress tree (tall dark tree)
         points = [(50, 450), (60, 400), (45, 350), (70, 300), (40, 250), (80, 200),
-                  (50, 150), (90, 100), (70, 50), (55, 0), (45, 50), (25, 100),
-                  (50, 150), (20, 200), (60, 250), (30, 300), (55, 350), (40, 400)]
+                (50, 150), (90, 100), (70, 50), (55, 0), (45, 50), (25, 100),
+                (50, 150), (20, 200), (60, 250), (30, 300), (55, 350), (40, 400)]
         pygame.draw.polygon(surface, (20, 40, 20), points)
 
         # Village houses
@@ -302,7 +305,7 @@ class JigsawPuzzle:
                 petal_x = x + math.cos(math.radians(angle)) * size
                 petal_y = y + math.sin(math.radians(angle)) * size
                 pygame.draw.ellipse(surface, (255, 215, 0),
-                                  (petal_x - 15, petal_y - 8, 30, 16))
+                                (petal_x - 15, petal_y - 8, 30, 16))
 
             # Center
             pygame.draw.circle(surface, (139, 69, 19), (x, y), size // 2)
@@ -373,7 +376,7 @@ class JigsawPuzzle:
         surface.fill((240, 240, 240))
 
         colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0),
-                  (255, 0, 255), (0, 255, 255), (255, 165, 0), (128, 0, 128)]
+                (255, 0, 255), (0, 255, 255), (255, 165, 0), (128, 0, 128)]
 
         # Geometric shapes
         for i in range(15):
@@ -391,7 +394,7 @@ class JigsawPuzzle:
                 pygame.draw.rect(surface, color, (x, y, w, h))
             elif shape_type == 3:  # Triangle
                 points = [(x, y), (x + random.randint(20, 80), y + random.randint(20, 80)),
-                         (x - random.randint(20, 80), y + random.randint(20, 80))]
+                        (x - random.randint(20, 80), y + random.randint(20, 80))]
                 pygame.draw.polygon(surface, color, points)
             else:  # Lines
                 end_x = x + random.randint(-100, 100)
@@ -479,8 +482,8 @@ class JigsawPuzzle:
             y = 30 + random.randint(0, 40)
             for j in range(3):
                 pygame.draw.circle(surface, (255, 255, 255),
-                                 (x + j * 20, y + random.randint(-10, 10)),
-                                 random.randint(15, 25))
+                                (x + j * 20, y + random.randint(-10, 10)),
+                                random.randint(15, 25))
 
         return surface
 
@@ -497,7 +500,7 @@ class JigsawPuzzle:
 
         # Scale the generated image
         self.original_image = pygame.transform.scale(self.current_image,
-                                                   (self.puzzle_width, self.puzzle_height))
+                                                (self.puzzle_width, self.puzzle_height))
 
         self.pieces = []
         self.puzzle_complete = False
@@ -514,7 +517,7 @@ class JigsawPuzzle:
             for col in range(self.grid_cols):
                 # Extract piece from original image
                 piece_rect = pygame.Rect(col * self.piece_width, row * self.piece_height,
-                                       self.piece_width, self.piece_height)
+                                    self.piece_width, self.piece_height)
                 piece_image = self.original_image.subsurface(piece_rect).copy()
 
                 # Correct position in puzzle
@@ -523,7 +526,7 @@ class JigsawPuzzle:
 
                 # Create piece
                 piece = PuzzlePiece(0, 0, self.piece_width, self.piece_height,
-                                  piece_image, correct_x, correct_y, piece_id)
+                                piece_image, correct_x, correct_y, piece_id)
                 self.pieces.append(piece)
                 piece_id += 1
 
@@ -555,7 +558,7 @@ class JigsawPuzzle:
 
                 # Keep pieces within screen bounds
                 piece.x = max(self.pieces_area_x - 50,
-                             min(self.screen_width - piece.width, piece.x))
+                            min(self.screen_width - piece.width, piece.x))
                 piece.y = max(50, min(self.screen_height - piece.height - 100, piece.y))
 
     def calculate_level_score(self):
@@ -725,7 +728,7 @@ class JigsawPuzzle:
                 pulse = int(50 + 30 * math.sin(time.time() * 5))
                 highlight_color = (255, 255, pulse)
                 highlight_rect = pygame.Rect(piece_x - 3, piece_y - 3,
-                                           piece.width + 6, piece.height + 6)
+                                        piece.width + 6, piece.height + 6)
                 pygame.draw.rect(overlay, highlight_color, highlight_rect, 4)
 
         if any(piece.hint_revealed and not piece.is_placed for piece in self.pieces):
@@ -840,7 +843,7 @@ class JigsawPuzzle:
         # Draw puzzle area background
         pygame.draw.rect(self.screen, (80, 80, 100),
                         (self.puzzle_x - 5, self.puzzle_y - 5,
-                         self.puzzle_width + 10, self.puzzle_height + 10))
+                        self.puzzle_width + 10, self.puzzle_height + 10))
         pygame.draw.rect(self.screen, (120, 120, 140),
                         (self.puzzle_x, self.puzzle_y, self.puzzle_width, self.puzzle_height))
 
@@ -947,4 +950,4 @@ if __name__ == "__main__":
         game.run()
     except Exception as e:
         print(f"An error occurred: {e}")
-        
+

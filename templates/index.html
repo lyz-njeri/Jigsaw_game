@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jigsaw Puzzle Adventure</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow-x: auto;
+        }
+
+        .game-container {
+            width: 1200px;
+            height: 800px;
+            margin: 20px auto;
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .level-info h1 {
+            margin: 0;
+            font-size: 28px;
+            color: #ecf0f1;
+        }
+
+        .level-info p {
+            margin: 5px 0;
+            color: #bdc3c7;
+            font-size: 14px;
+        }
+
+        .score-info {
+            text-align: right;
+        }
+
+        .score-info div {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+
+        .puzzle-area {
+            position: absolute;
+            left: 50px;
+            top: 100px;
+            width: 600px;
+            height: 450px;
+            background: rgba(120, 120, 140, 0.8);
+            border: 5px solid rgba(80, 80, 100, 0.8);
+            border-radius: 10px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .pieces-area {
+            position: absolute;
+            left: 700px;
+            top: 100px;
+            width: 450px;
+            height: 400px;
+            background: rgba(0, 0, 0, 0.2);
+            border: 2px dashed rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        .puzzle-piece {
+            position: absolute;
+            cursor: grab;
+            border: 2px solid white;
+            border-radius: 3px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+        }
+
+        .puzzle-piece:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            z-index: 100;
+        }
+
+        .puzzle-piece.dragging {
+            cursor: grabbing;
+            transform: scale(1.1);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            border-color: #e74c3c;
+        }
+
+        .puzzle-piece.placed {
+            border-color: #2ecc71;
+            cursor: default;
+        }
+
+        .puzzle-piece.placed:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        .puzzle-piece.hinted {
+            border-color: #f1c40f;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .hint-overlay {
+            position: absolute;
+            left: 50px;
+            top: 100px;
+            width: 600px;
+            height: 450px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 10px;
+            pointer-events: none;
+            z-index: 500;
+        }
+
+        .hint-piece {
+            position: absolute;
+            border: 4px solid #f1c40f;
+            border-radius: 3px;
+            opacity: 0.8;
+            animation: hint-glow 2s infinite;
+        }
+
+        @keyframes hint-glow {
+            0%, 100% { box-shadow: 0 0 10px #f1c40f; }
+            50% { box-shadow: 0 0 20px #f1c40f, 0 0 30px #f1c40f; }
+        }
+
+        .controls {
+            position: absolute;
+            right: 50px;
+            top: 520px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-hint {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-hint:disabled {
+            background: #7f8c8d;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .btn-next {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .btn-reset {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .progress-bar {
+            position: absolute;
+            bottom: 120px;
+            left: 50px;
+            width: 600px;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            border-radius: 10px;
+            transition: width 0.5s ease;
+        }
+
+        .level-progression {
+            position: absolute;
+            bottom: 80px;
+            left: 50px;
+            width: 600px;
+            display: flex;
+            gap: 2px;
+        }
+
+        .level-indicator {
+            flex: 1;
+            height: 20px;
+            background: #7f8c8d;
+            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .level-indicator.completed {
+            background: #2ecc71;
+        }
+
+        .level-indicator.current {
+            background: #f1c40f;
+            color: #2c3e50;
+        }
+
+        .instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 50px;
+            width: 600px;
+            font-size: 12px;
+            color: #bdc3c7;
+            line-height: 1.4;
+        }
+
+        .hint-timer {
+            position: absolute;
+            right: 50px;
+            top: 480px;
+            font-size: 12px;
+            color: #f1c40f;
+            text-align: center;
+        }
+
+        .completion-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.5s ease;
+        }
+
+        .completion-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .completion-dialog {
+            background: linear-gradient(135deg, #2c3e50, #34495e);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            border: 3px solid #f1c40f;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .completion-dialog h2 {
+            color: #f1c40f;
+            font-size: 32px;
+            margin: 0 0 20px 0;
+        }
+
+        .completion-dialog p {
+            font-size: 18px;
+            margin: 10px 0;
+            color: #ecf0f1;
+        }
+
+        .loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: white;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .difficulty-stars {
+            color: #f1c40f;
+            font-size: 16px;
+            margin: 5px 0;
+        }
+
+        @media (max-width: 1240px) {
+            .game-container {
+                width: 100%;
+                padding: 10px;
+                margin: 10px;
+            }
+
+            .puzzle-area {
+                transform: scale(0.8);
+                transform-origin: top left;
+            }
+
+            .pieces-area {
+                left: 560px;
+                transform: scale(0.8);
+                transform-origin: top left;
+            }
+
+            .controls {
+                right: 20px;
+                top: 440px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div>Loading Jigsaw Puzzle...</div>
+    </div>
+
+    <div class="game-container" id="gameContainer" style="display: none;">
+        <div class="header">
+            <div class="level-info">
+                <h1 id="levelTitle">Loading...</h1>
+                <p id="levelDescription">Please wait...</p>
+                <p id="progressText">Progress: 0/0 pieces</p>
+                <div class="difficulty-stars" id="difficultyStars"></div>
+            </div>
+            <div class="score-info">
+                <div id="totalScore">Total Score: 0</div>
+                <div id="levelScore">Level Score: 0</div>
+                <div id="hintsUsed">Hints Used: 0</div>
+            </div>
+        </div>
+
+        <div class="puzzle-area" id="puzzleArea"></div>
+        <div class="pieces-area" id="piecesArea"></div>
+
+        <div class="hint-overlay" id="hintOverlay" style="display: none;"></div>
+
+        <div class="controls">
+            <button class="btn btn-hint" id="hintBtn">Hint</button>
+            <button class="btn btn-next" id="nextBtn" style="display: none;">Next Level</button>
+            <button class="btn btn-reset" id="resetBtn">Reset Game</button>
+            <div class="hint-timer" id="hintTimer" style="display: none;"></div>
+        </div>
+
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+        </div>
+
+        <div class="level-progression" id="levelProgression"></div>
+
+        <div class="instructions">
+            <strong>Instructions:</strong><br>
+            • Drag puzzle pieces to assemble the image<br>
+            • Click HINT button for help (available every 2 hours)<br>
+            • Green border = correctly placed piece<br>
+            • Yellow border = hinted piece<br>
+            • Red border = currently dragging
+        </div>
+    </div>
+
+    <div class="completion-overlay" id="completionOverlay">
+        <div class="completion-dialog">
+            <h2 id="completionTitle">🎉 Level Complete! 🎉</h2>
+            <p id="completionScore">Level Score: +0 points!</p>
+            <p id="completionTotal">Total Score: 0</p>
+            <button class="btn btn-next" onclick="nextLevel()">Continue</button>
+        </div>
+    </div>
+
+    <script>
+        class JigsawPuzzleGame {
+            constructor() {
+                this.gameState = null;
+                this.draggedPiece = null;
+                this.dragOffset = { x: 0, y: 0 };
+                this.pieces = {};
+                this.hintTimer = null;
+
+                this.init();
+            }
+
+            async init() {
+                try {
+                    await this.loadGameState();
+                    this.setupEventListeners();
+                    this.render();
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('gameContainer').style.display = 'block';
+                } catch (error) {
+                    console.error('Failed to initialize game:', error);
+                }
+            }
+
+            async loadGameState() {
+                const response = await fetch('/api/game_state');
+                this.gameState = await response.json();
+                this.startHintTimer();
+            }
+
+            setupEventListeners() {
+                document.getElementById('hintBtn').addEventListener('click', () => this.useHint());
+                document.getElementById('nextBtn').addEventListener('click', () => this.nextLevel());
+                document.getElementById('resetBtn').addEventListener('click', () => this.resetGame());
+
+                // Mouse events for drag and drop
+                document.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                document.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                document.addEventListener('mouseup', (e) => this.onMouseUp(e));
+
+                // Touch events for mobile
+                document.addEventListener('touchstart', (e) => this.onTouchStart(e));
+                document.addEventListener('touchmove', (e) => this.onTouchMove(e));
+                document.addEventListener('touchend', (e) => this.onTouchEnd(e));
+            }
+
+            render() {
+                this.renderUI();
+                this.renderPieces();
+                this.renderHints();
+            }
+
+            renderUI() {
+                const level = this.gameState.level_info;
+
+                document.getElementById('levelTitle').textContent = `Level ${this.gameState.current_level + 1}: ${level.name}`;
+                document.getElementById('levelDescription').textContent = level.description;
+
+                const placedPieces = this.gameState.pieces.filter(p => p.is_placed).length;
+                document.getElementById('progressText').textContent = `Progress: ${placedPieces}/${this.gameState.pieces.length} pieces`;
+
+                document.getElementById('totalScore').textContent = `Total Score: ${this.gameState.total_score}`;
+                document.getElementById('hintsUsed').textContent = `Hints Used: ${this.gameState.hints_used}`;
+
+                // Difficulty stars
+                const stars = '★'.repeat(level.difficulty) + '☆'.repeat(5 - level.difficulty);
+                document.getElementById('difficultyStars').textContent = `Difficulty: ${stars}`;
+
+                // Progress bar
+                const progress = (placedPieces / this.gameState.pieces.length) * 100;
+                document.getElementById('progressFill').style.width = `${progress}%`;
+
+                // Hint button
+                const hintBtn = document.getElementById('hintBtn');
+                hintBtn.disabled = !this.gameState.can_use_hint;
+                hintBtn.textContent = this.gameState.can_use_hint ? 'Hint' : 'Wait';
+
+                // Next level button
+                const nextBtn = document.getElementById('nextBtn');
+                nextBtn.style.display = this.gameState.puzzle_complete ? 'block' : 'none';
+
+                // Level progression
+                this.renderLevelProgression();
+
+                // Show completion overlay if puzzle is complete
+                if (this.gameState.puzzle_complete) {
+                    this.showCompletionOverlay();
+                }
+            }
+
+            renderLevelProgression() {
+                const progression = document.getElementById('levelProgression');
+                progression.innerHTML = '';
+
+                // Assuming 8 levels based on the original code
+                for (let i = 0; i < 8; i++) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'level-indicator';
+                    indicator.textContent = i + 1;
+
+                    if (i < this.gameState.current_level) {
+                        indicator.classList.add('completed');
+                    } else if (i === this.gameState.current_level) {
+                        indicator.classList.add('current');
+                    }
+
+                    progression.appendChild(indicator);
+                }
+            }
+
+            renderPieces() {
+                const piecesArea = document.getElementById('piecesArea');
+                const puzzleArea = document.getElementById('puzzleArea');
+
+                // Clear existing pieces
+                document.querySelectorAll('.puzzle-piece').forEach(el => el.remove());
+                this.pieces = {};
+
+                this.gameState.pieces.forEach(pieceData => {
+                    const piece = document.createElement('div');
+                    piece.className = 'puzzle-piece';
+                    piece.dataset.pieceId = pieceData.piece_id;
+
+                    // Set piece properties
+                    piece.style.left = `${pieceData.x}px`;
+                    piece.style.top = `${pieceData.y}px`;
+                    piece.style.width = `${pieceData.width}px`;
+                    piece.style.height = `${pieceData.height}px`;
+                    piece.style.backgroundImage = `url(${pieceData.image_section})`;
+                    piece.style.backgroundSize = 'cover';
+
+                    // Add state classes
+                    if (pieceData.is_placed) {
+                        piece.classList.add('placed');
+                    }
+                    if (pieceData.hint_revealed) {
+                        piece.classList.add('hinted');
+                    }
+                    if (pieceData.dragging) {
+                        piece.classList.add('dragging');
+                    }
+
+                    document.body.appendChild(piece);
+                    this.pieces[pieceData.piece_id] = { element: piece, data: pieceData };
+                });
+            }
+
+            renderHints() {
+                const hintOverlay = document.getElementById('hintOverlay');
+                hintOverlay.innerHTML = '';
+
+                const hintedPieces = this.gameState.pieces.filter(p => p.hint_revealed && !p.is_placed);
+
+                if (hintedPieces.length > 0) {
+                    hintOverlay.style.display = 'block';
+
+                    hintedPieces.forEach(piece => {
+                        const hintPiece = document.createElement('div');
+                        hintPiece.className = 'hint-piece';
+                        hintPiece.style.left = `${piece.correct_x - this.gameState.puzzle_dimensions.x}px`;
+                        hintPiece.style.top = `${piece.correct_y - this.gameState.puzzle_dimensions.y}px`;
+                        hintPiece.style.width = `${piece.width}px`;
+                        hintPiece.style.height = `${piece.height}px`;
+                        hintPiece.style.backgroundImage = `url(${piece.image_section})`;
+                        hintPiece.style.backgroundSize = 'cover';
+
+                        hintOverlay.appendChild(hintPiece);
+                    });
+                } else {
+                    hintOverlay.style.display = 'none';
+                }
+            }
+
+            onMouseDown(e) {
+                const piece = e.target.closest('.puzzle-piece');
+                if (piece && !piece.classList.contains('placed')) {
+                    this.startDrag(piece, e.clientX, e.clientY);
+                }
+            }
+
+            onMouseMove(e) {
+                if (this.draggedPiece) {
+                    this.updateDrag(e.clientX, e.clientY);
+                }
+            }
+
+            onMouseUp(e) {
+                if (this.draggedPiece) {
+                    this.endDrag();
+                }
+            }
+
+            onTouchStart(e) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const piece = document.elementFromPoint(touch.clientX, touch.clientY)?.closest('.puzzle-piece');
+                if (piece && !piece.classList.contains('placed')) {
+                    this.startDrag(piece, touch.clientX, touch.clientY);
+                }
+            }
+
+            onTouchMove(e) {
+                e.preventDefault();
+                if (this.draggedPiece) {
+                    const touch = e.touches[0];
+                    this.updateDrag(touch.clientX, touch.clientY);
+                }
+            }
+
+            onTouchEnd(e) {
+                e.preventDefault();
+                if (this.draggedPiece) {
+                    this.endDrag();
+                }
+            }
+
+            startDrag(piece, clientX, clientY) {
+                this.draggedPiece = piece;
+                piece.classList.add('dragging');
+
+                const rect = piece.getBoundingClientRect();
+                this.dragOffset = {
+                    x: clientX - rect.left,
+                    y: clientY - rect.top
+                };
+
+                piece.style.zIndex = '1000';
+            }
+
+            updateDrag(clientX, clientY) {
+                if (this.draggedPiece) {
+                    const x = clientX - this.dragOffset.x;
+                    const y = clientY - this.dragOffset.y;
+
+                    this.draggedPiece.style.left = `${x}px`;
+                    this.draggedPiece.style.top = `${y}px`;
+                }
+            }
+
+            async endDrag() {
+                if (this.draggedPiece) {
+                    const piece = this.draggedPiece;
+                    const pieceId = parseInt(piece.dataset.pieceId);
+                    const rect = piece.getBoundingClientRect();
+
+                    piece.classList.remove('dragging');
+                    piece.style.zIndex = '';
+
+                    try {
+                        const response = await fetch('/api/move_piece', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                piece_id: pieceId,
+                                x: rect.left,
+                                y: rect.top
+                            })
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            this.gameState = result.game_state;
+                            this.render();
+
+                            if (result.puzzle_complete) {
+                                setTimeout(() => {
+                                    this.showCompletionOverlay(result.level_score);
+                                }, 500);
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Failed to move piece:', error);
+                    }
+
+                    this.draggedPiece = null;
+                }
+            }
+
+            async useHint() {
+                try {
+                    const response = await fetch('/api/use_hint', {
+                        method: 'POST'
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.gameState = result.game_state;
+                        this.render();
+                        this.showMessage(result.message, 'success');
+                    } else {
+                        this.showMessage(result.message, 'warning');
+                    }
+                } catch (error) {
+                    console.error('Failed to use hint:', error);
+                    this.showMessage('Failed to use hint', 'error');
+                }
+            }
+
+            async nextLevel() {
+                try {
+                    const response = await fetch('/api/next_level', {
+                        method: 'POST'
+                    });
+
+                    const result = await response.json();
+                    if (result.success) {
+                        this.gameState = result.game_state;
+                        this.render();
+                        this.hideCompletionOverlay();
+                    }
+                } catch (error) {
+                    console.error('Failed to go to next level:', error);
+                }
+            }
+
+            async resetGame() {
+                if (confirm('Are you sure you want to reset the game? This will lose all progress.')) {
+                    try {
+                        const response = await fetch('/api/reset_game', {
+                            method: 'POST'
+                        });
+
+                        const result = await response.json();
+                        if (result.success) {
+                            this.gameState = result.game_state;
+                            this.render();
+                            this.hideCompletionOverlay();
+                            this.showMessage('Game reset successfully!', 'info');
+                        }
+                    } catch (error) {
+                        console.error('Failed to reset game:', error);
+                    }
+                }
+            }
+
+            showCompletionOverlay(levelScore) {
+                const overlay = document.getElementById('completionOverlay');
+                const scoreEl = document.getElementById('completionScore');
+                const totalEl = document.getElementById('completionTotal');
+
+                if (levelScore) {
+                    scoreEl.textContent = `Level Score: +${levelScore} points!`;
+                }
+                totalEl.textContent = `Total Score: ${this.gameState.total_score}`;
+
+                overlay.classList.add('active');
+            }
+
+            hideCompletionOverlay() {
+                const overlay = document.getElementById('completionOverlay');
+                overlay.classList.remove('active');
+            }
+
+            showMessage(message, type) {
+                // Simple message display - you could enhance this with a proper toast system
+                console.log(`${type.toUpperCase()}: ${message}`);
+
+                // Create a temporary message element
+                const messageEl = document.createElement('div');
+                messageEl.textContent = message;
+                messageEl.style.cssText = `
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    color: white;
+                    font-weight: bold;
+                    z-index: 3000;
+                    transition: all 0.3s ease;
+                `;
+
+                switch (type) {
+                    case 'success':
+                        messageEl.style.background = '#2ecc71';
+                        break;
+                    case 'warning':
+                        messageEl.style.background = '#f1c40f';
+                        messageEl.style.color = '#2c3e50';
+                        break;
+                    case 'error':
+                        messageEl.style.background = '#e74c3c';
+                        break;
+                    default:
+                        messageEl.style.background = '#3498db';
+                }
+
+                document.body.appendChild(messageEl);
+
+                setTimeout(() => {
+                    messageEl.style.opacity = '0';
+                    messageEl.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        document.body.removeChild(messageEl);
+                    }, 300);
+                }, 3000);
+            }
+
+            startHintTimer() {
+                if (this.hintTimer) {
+                    clearInterval(this.hintTimer);
+                }
+
+                this.updateHintTimer();
+                this.hintTimer = setInterval(() => {
+                    this.updateHintTimer();
+                }, 60000); // Update every minute
+            }
+
+            updateHintTimer() {
+                const timerEl = document.getElementById('hintTimer');
+
+                if (!this.gameState.can_use_hint) {
+                    // This would need to be calculated on the backend and sent with game state
+                    timerEl.style.display = 'block';
+                    timerEl.textContent = 'Next hint: Check later';
+                } else {
+                    timerEl.style.display = 'none';
+                }
+            }
+        }
+
+        // Global functions for event handlers
+        function nextLevel() {
+            game.nextLevel();
+        }
+
+        // Initialize the game when the page loads
+        let game;
+        window.addEventListener('load', () => {
+            game = new JigsawPuzzleGame();
+        });
+    </script>
+</body>
+</html>
